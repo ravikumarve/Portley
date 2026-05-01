@@ -352,6 +352,353 @@ class SupabaseService:
         except Exception as e:
             print(f"Error getting activity: {e}")
             return []
+    
+    # ============================================================================
+    # FILE OPERATIONS
+    # ============================================================================
+    
+    async def create_file(self, file_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """
+        Create new file
+        
+        Args:
+            file_data: File data
+            
+        Returns:
+            Optional[Dict]: Created file data or None
+        """
+        try:
+            response = self.client.table('files').insert(file_data).execute()
+            if response.data:
+                return response.data[0]
+            return None
+        except Exception as e:
+            print(f"Error creating file: {e}")
+            return None
+    
+    async def get_files_by_project(self, project_id: UUID) -> List[Dict[str, Any]]:
+        """
+        Get all files for a project (excluding soft-deleted)
+        
+        Args:
+            project_id: Project UUID
+            
+        Returns:
+            List[Dict]: List of files
+        """
+        try:
+            response = self.client.table('files').select('*').eq('project_id', str(project_id)).is_('deleted_at', 'null').execute()
+            return response.data or []
+        except Exception as e:
+            print(f"Error getting files: {e}")
+            return []
+    
+    async def get_file_by_id(self, file_id: UUID) -> Optional[Dict[str, Any]]:
+        """
+        Get file by ID
+        
+        Args:
+            file_id: File UUID
+            
+        Returns:
+            Optional[Dict]: File data or None
+        """
+        try:
+            response = self.client.table('files').select('*').eq('id', str(file_id)).execute()
+            if response.data:
+                return response.data[0]
+            return None
+        except Exception as e:
+            print(f"Error getting file: {e}")
+            return None
+    
+    async def delete_file(self, file_id: UUID) -> bool:
+        """
+        Soft delete file (set deleted_at)
+        
+        Args:
+            file_id: File UUID
+            
+        Returns:
+            bool: Success status
+        """
+        try:
+            response = self.client.table('files').update({'deleted_at': 'now()'}).eq('id', str(file_id)).execute()
+            return len(response.data) > 0
+        except Exception as e:
+            print(f"Error deleting file: {e}")
+            return False
+    
+    # ============================================================================
+    # MESSAGE OPERATIONS
+    # ============================================================================
+    
+    async def create_message(self, message_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """
+        Create new message
+        
+        Args:
+            message_data: Message data
+            
+        Returns:
+            Optional[Dict]: Created message data or None
+        """
+        try:
+            response = self.client.table('messages').insert(message_data).execute()
+            if response.data:
+                return response.data[0]
+            return None
+        except Exception as e:
+            print(f"Error creating message: {e}")
+            return None
+    
+    async def get_messages_by_project(self, project_id: UUID, cursor: Optional[str] = None, limit: int = 50) -> List[Dict[str, Any]]:
+        """
+        Get messages for a project with pagination
+        
+        Args:
+            project_id: Project UUID
+            cursor: Pagination cursor
+            limit: Number of messages per page
+            
+        Returns:
+            List[Dict]: List of messages
+        """
+        try:
+            query = self.client.table('messages').select('*').eq('project_id', str(project_id)).order('created_at', desc=True).limit(limit)
+            
+            if cursor:
+                query = query.lt('created_at', cursor)
+            
+            response = query.execute()
+            return response.data or []
+        except Exception as e:
+            print(f"Error getting messages: {e}")
+            return []
+    
+    async def mark_message_read(self, message_id: UUID, user_id: str) -> bool:
+        """
+        Mark message as read (add user to read_by array)
+        
+        Args:
+            message_id: Message UUID
+            user_id: User ID to add to read_by
+            
+        Returns:
+            bool: Success status
+        """
+        try:
+            # Get current message
+            response = self.client.table('messages').select('read_by').eq('id', str(message_id)).execute()
+            if not response.data:
+                return False
+            
+            read_by = response.data[0].get('read_by', [])
+            if user_id not in read_by:
+                read_by.append(user_id)
+                self.client.table('messages').update({'read_by': read_by}).eq('id', str(message_id)).execute()
+            
+            return True
+        except Exception as e:
+            print(f"Error marking message read: {e}")
+            return False
+    
+    # ============================================================================
+    # APPROVAL OPERATIONS
+    # ============================================================================
+    
+    async def create_approval(self, approval_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """
+        Create new approval
+        
+        Args:
+            approval_data: Approval data
+            
+        Returns:
+            Optional[Dict]: Created approval data or None
+        """
+        try:
+            response = self.client.table('approvals').insert(approval_data).execute()
+            if response.data:
+                return response.data[0]
+            return None
+        except Exception as e:
+            print(f"Error creating approval: {e}")
+            return None
+    
+    async def get_approvals_by_project(self, project_id: UUID) -> List[Dict[str, Any]]:
+        """
+        Get all approvals for a project
+        
+        Args:
+            project_id: Project UUID
+            
+        Returns:
+            List[Dict]: List of approvals
+        """
+        try:
+            response = self.client.table('approvals').select('*').eq('project_id', str(project_id)).order('created_at', desc=True).execute()
+            return response.data or []
+        except Exception as e:
+            print(f"Error getting approvals: {e}")
+            return []
+    
+    async def get_approval_by_id(self, approval_id: UUID) -> Optional[Dict[str, Any]]:
+        """
+        Get approval by ID
+        
+        Args:
+            approval_id: Approval UUID
+            
+        Returns:
+            Optional[Dict]: Approval data or None
+        """
+        try:
+            response = self.client.table('approvals').select('*').eq('id', str(approval_id)).execute()
+            if response.data:
+                return response.data[0]
+            return None
+        except Exception as e:
+            print(f"Error getting approval: {e}")
+            return None
+    
+    async def update_approval(self, approval_id: UUID, update_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """
+        Update approval
+        
+        Args:
+            approval_id: Approval UUID
+            update_data: Data to update
+            
+        Returns:
+            Optional[Dict]: Updated approval data or None
+        """
+        try:
+            response = self.client.table('approvals').update(update_data).eq('id', str(approval_id)).execute()
+            if response.data:
+                return response.data[0]
+            return None
+        except Exception as e:
+            print(f"Error updating approval: {e}")
+            return None
+    
+    # ============================================================================
+    # INVOICE OPERATIONS
+    # ============================================================================
+    
+    async def create_invoice(self, invoice_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """
+        Create new invoice
+        
+        Args:
+            invoice_data: Invoice data
+            
+        Returns:
+            Optional[Dict]: Created invoice data or None
+        """
+        try:
+            response = self.client.table('invoices').insert(invoice_data).execute()
+            if response.data:
+                return response.data[0]
+            return None
+        except Exception as e:
+            print(f"Error creating invoice: {e}")
+            return None
+    
+    async def get_invoices_by_agency(self, agency_id: UUID, filters: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+        """
+        Get all invoices for an agency
+        
+        Args:
+            agency_id: Agency UUID
+            filters: Optional filters
+            
+        Returns:
+            List[Dict]: List of invoices
+        """
+        try:
+            query = self.client.table('invoices').select('*').eq('agency_id', str(agency_id))
+            
+            if filters:
+                if 'status' in filters:
+                    query = query.eq('status', filters['status'])
+                if 'client_id' in filters:
+                    query = query.eq('client_id', str(filters['client_id']))
+            
+            response = query.order('created_at', desc=True).execute()
+            return response.data or []
+        except Exception as e:
+            print(f"Error getting invoices: {e}")
+            return []
+    
+    async def get_invoice_by_id(self, invoice_id: UUID) -> Optional[Dict[str, Any]]:
+        """
+        Get invoice by ID
+        
+        Args:
+            invoice_id: Invoice UUID
+            
+        Returns:
+            Optional[Dict]: Invoice data or None
+        """
+        try:
+            response = self.client.table('invoices').select('*').eq('id', str(invoice_id)).execute()
+            if response.data:
+                return response.data[0]
+            return None
+        except Exception as e:
+            print(f"Error getting invoice: {e}")
+            return None
+    
+    async def update_invoice(self, invoice_id: UUID, update_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """
+        Update invoice
+        
+        Args:
+            invoice_id: Invoice UUID
+            update_data: Data to update
+            
+        Returns:
+            Optional[Dict]: Updated invoice data or None
+        """
+        try:
+            response = self.client.table('invoices').update(update_data).eq('id', str(invoice_id)).execute()
+            if response.data:
+                return response.data[0]
+            return None
+        except Exception as e:
+            print(f"Error updating invoice: {e}")
+            return None
+    
+    async def generate_invoice_number(self, agency_id: UUID) -> str:
+        """
+        Generate next invoice number for agency
+        
+        Args:
+            agency_id: Agency UUID
+            
+        Returns:
+            str: Invoice number in format INV-{YYYY}-{seq_padded_3}
+        """
+        try:
+            # Get agency current sequence
+            agency_response = self.client.table('agencies').select('invoice_seq').eq('id', str(agency_id)).execute()
+            if not agency_response.data:
+                return f"INV-{datetime.now().year}-001"
+            
+            agency = agency_response.data[0]
+            current_seq = agency.get('invoice_seq', 0)
+            next_seq = current_seq + 1
+            
+            # Update agency sequence
+            self.client.table('agencies').update({'invoice_seq': next_seq}).eq('id', str(agency_id)).execute()
+            
+            # Format invoice number
+            year = datetime.now().year
+            return f"INV-{year}-{next_seq:03d}"
+        except Exception as e:
+            print(f"Error generating invoice number: {e}")
+            return f"INV-{datetime.now().year}-001"
 
 
 # Create singleton instance
