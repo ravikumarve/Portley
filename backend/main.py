@@ -85,20 +85,27 @@ async def root():
     }
 
 # Include routers
-from backend.routers import projects, clients
+from backend.routers import (
+    projects,
+    clients,
+    files,
+    messages,
+    approvals,
+    invoices,
+    ai,
+    webhooks,
+    admin
+)
 
 app.include_router(projects.router, prefix="/api", tags=["Projects"])
 app.include_router(clients.router, prefix="/api", tags=["Clients"])
-
-# Remaining routers (will be added in subsequent tasks)
-# from routers import files, messages, approvals, invoices, ai, webhooks, admin
-# app.include_router(files.router, prefix="/api", tags=["Files"])
-# app.include_router(messages.router, prefix="/api", tags=["Messages"])
-# app.include_router(approvals.router, prefix="/api", tags=["Approvals"])
-# app.include_router(invoices.router, prefix="/api", tags=["Invoices"])
-# app.include_router(ai.router, prefix="/api", tags=["AI"])
-# app.include_router(webhooks.router, prefix="/api", tags=["Webhooks"])
-# app.include_router(admin.router, prefix="/api", tags=["Admin"])
+app.include_router(files.router, prefix="/api", tags=["Files"])
+app.include_router(messages.router, prefix="/api", tags=["Messages"])
+app.include_router(approvals.router, prefix="/api", tags=["Approvals"])
+app.include_router(invoices.router, prefix="/api", tags=["Invoices"])
+app.include_router(ai.router, prefix="/api", tags=["AI"])
+app.include_router(webhooks.router, prefix="/api", tags=["Webhooks"])
+app.include_router(admin.router, prefix="/api", tags=["Admin"])
 
 if __name__ == "__main__":
     uvicorn.run(
