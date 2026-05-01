@@ -425,6 +425,21 @@ CREATE POLICY "Users can insert messages"
     ON messages FOR INSERT
     WITH CHECK (
         sender_id = auth.uid()
+        AND (
+            -- Agency owner can insert messages in their projects
+            project_id IN (
+                SELECT p.id FROM projects p
+                JOIN agencies a ON a.id = p.agency_id
+                WHERE a.owner_id = auth.uid()
+            )
+            OR
+            -- Clients can insert messages in their assigned projects
+            project_id IN (
+                SELECT p.id FROM projects p
+                JOIN clients c ON c.id = p.client_id
+                WHERE c.user_id = auth.uid()
+            )
+        )
     );
 
 -- Approvals: Agency members can see approvals for their projects
