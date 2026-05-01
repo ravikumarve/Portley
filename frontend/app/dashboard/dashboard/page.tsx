@@ -1,22 +1,30 @@
-/**
- * Dashboard Page
- * Main dashboard for authenticated users
- */
-
 'use client'
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { StatCards } from '@/components/dashboard/StatCards'
+import { ActivityFeed } from '@/components/dashboard/ActivityFeed'
+import { QuickActions } from '@/components/dashboard/QuickActions'
+import { FolderKanban, Users, DollarSign, AlertCircle } from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 
 export default function DashboardPage() {
   const [user, setUser] = useState<any>(null)
+  const [agency, setAgency] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [stats, setStats] = useState({
+    projects: 0,
+    clients: 0,
+    revenue: 0,
+    pendingApprovals: 0,
+  })
   const router = useRouter()
   const supabase = createClient()
 
   useEffect(() => {
-    const checkAuth = async () => {
+    const loadDashboardData = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser()
         
@@ -26,22 +34,58 @@ export default function DashboardPage() {
         }
 
         setUser(user)
+
+        // Fetch agency data
+        const { data: agencyData } = await supabase
+          .from('agencies')
+          .select('*')
+          .eq('owner_id', user.id)
+          .single()
+
+        if (agencyData) {
+          setAgency(agencyData)
+
+          // Fetch stats
+          const [projectsCount, clientsCount, invoicesData, approvalsCount] = await Promise.all([
+            supabase
+              .from('projects')
+              .select('*', { count: 'exact', head: true })
+              .eq('agency_id', agencyData.id)
+              .not('status', 'eq', 'deleted'),
+            supabase
+              .from('clients')
+              .select('*', { count: 'exact', head: true })
+              .eq('agency_id', agencyData.id),
+            supabase
+              .from('invoices')
+              .select('amount')
+              .eq('agency_id', agencyData.id)
+              .eq('status', 'paid'),
+            supabase
+              .from('approvals')
+              .select('*', { count: 'exact', head: true })
+              .eq('agency_id', agencyData.id)
+              .eq('status', 'pending'),
+          ])
+
+          const totalRevenue = invoicesData.data?.reduce((sum, inv) => sum + (inv.amount || 0), 0) || 0
+
+          setStats({
+            projects: projectsCount.count || 0,
+            clients: clientsCount.count || 0,
+            revenue: totalRevenue,
+            pendingApprovals: approvalsCount.count || 0,
+          })
+        }
       } catch (error) {
-        console.error('Auth check failed:', error)
-        router.push('/auth/login')
+        console.error('Failed to load dashboard data:', error)
       } finally {
         setLoading(false)
       }
     }
 
-    checkAuth()
+    loadDashboardData()
   }, [supabase, router])
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut()
-    router.push('/')
-    router.refresh()
-  }
 
   if (loading) {
     return (
@@ -51,75 +95,82 @@ export default function DashboardPage() {
     )
   }
 
+  const userName = user?.user_metadata?.full_name?.split(' ')[0] || 'there'
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="space-y-8">
       {/* Header */}
-      <header className="border-b border-border">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Portley</h1>
-          <div className="flex items-center gap-4">
-            <span className="text-text-2">
-              {user?.user_metadata?.full_name || user?.email}
-            </span>
-            <button
-              onClick={handleLogout}
-              className="px-4 py-2 bg-surface2 hover:bg-surface border border-border text-text font-semibold rounded-lg transition-colors text-sm"
-            >
-              Logout
-            </button>
-          </div>
-        </div>
-      </header>
+      <div>
+        <h1 className="text-3xl font-bold mb-2">
+          Good morning, {userName}.
+        </h1>
+        <p className="text-text-2">Here's what needs attention.</p>
+      </div>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold mb-2">
-            Good morning, {user?.user_metadata?.full_name?.split(' ')[0] || 'there'}.
-          </h2>
-          <p className="text-text-2">Here's what needs attention.</p>
-        </div>
+      {/* Stat Cards */}
+      <StatCards
+        stats={[
+          {
+            label: 'Projects',
+            value: stats.projects,
+            color: 'accent',
+            icon: <FolderKanban className="h-6 w-6" />,
+          },
+          {
+            label: 'Clients',
+            value: stats.clients,
+            color: 'success',
+            icon: <Users className="h-6 w-6" />,
+          },
+          {
+            label: 'Revenue',
+            value: `₹${stats.revenue.toLocaleString()}`,
+            color: 'warning',
+            icon: <DollarSign className="h-6 w-6" />,
+          },
+          {
+            label: 'Pending Approvals',
+            value: stats.pendingApprovals,
+            color: stats.pendingApprovals > 0 ? 'danger' : 'accent',
+            icon: <AlertCircle className="h-6 w-6" />,
+          },
+        ]}
+      />
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          {[
-            { label: 'Projects', value: '0', color: 'accent' },
-            { label: 'Clients', value: '0', color: 'success' },
-            { label: 'Revenue', value: '₹0', color: 'warning' },
-            { label: 'Pending Approvals', value: '0', color: 'danger' },
-          ].map((stat, index) => (
-            <div
-              key={index}
-              className="bg-surface border border-border rounded-lg p-6"
-            >
-              <p className="text-text-2 text-sm mb-2">{stat.label}</p>
-              <p className={`text-3xl font-bold text-${stat.color}`}>
-                {stat.value}
-              </p>
+      {/* Main Content Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Active Projects */}
+        <Card className="border-border bg-surface">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle>Active Projects</CardTitle>
+              <Badge variant="secondary">{stats.projects}</Badge>
             </div>
-          ))}
-        </div>
+          </CardHeader>
+          <CardContent>
+            {stats.projects === 0 ? (
+              <div className="text-center text-text-2 py-8">
+                No active projects yet
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {/* Project items would be loaded here */}
+                <div className="text-sm text-text-2">
+                  Projects will appear here
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
-        {/* Empty State */}
-        <div className="bg-surface border border-border rounded-lg p-12 text-center">
-          <div className="max-w-md mx-auto">
-            <h3 className="text-xl font-semibold mb-4">
-              Welcome to Portley!
-            </h3>
-            <p className="text-text-2 mb-6">
-              You're all set up. Start by creating your first project or inviting a client.
-            </p>
-            <div className="flex gap-4 justify-center">
-              <button className="px-6 py-3 bg-accent hover:bg-accent-hover text-white font-semibold rounded-lg transition-colors">
-                Create Project
-              </button>
-              <button className="px-6 py-3 bg-surface2 hover:bg-surface border border-border text-text font-semibold rounded-lg transition-colors">
-                Invite Client
-              </button>
-            </div>
-          </div>
-        </div>
-      </main>
+        {/* Activity Feed */}
+        {agency && (
+          <ActivityFeed agencyId={agency.id} limit={5} />
+        )}
+      </div>
+
+      {/* Quick Actions */}
+      <QuickActions />
     </div>
   )
 }
