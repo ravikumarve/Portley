@@ -1,6 +1,7 @@
 -- Portley Database Schema
 -- Migration: 001_initial_schema
 -- Description: Complete schema for Portley white-label client portal SaaS
+-- Version: 2.0 (Fixed all critical issues)
 
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -11,14 +12,15 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 CREATE TABLE agencies (
     id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    owner_id      UUID NOT NULL,
+    owner_id      UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     name          TEXT NOT NULL,
     slug          TEXT UNIQUE NOT NULL,
     logo_url      TEXT,
-    brand_color   TEXT DEFAULT '#6366f1',
-    custom_domain TEXT,
+    brand_color   TEXT DEFAULT '#6366f1' CHECK (brand_color ~ '^#[0-9a-fA-F]{6}$'),
+    custom_domain TEXT CHECK (custom_domain IS NULL OR custom_domain ~ '^[a-z0-9][a-z0-9\-\.]+[a-z0-9]$'),
     plan          TEXT DEFAULT 'free' CHECK (plan IN ('free','solo','agency')),
     plan_expires_at TIMESTAMPTZ,
+    invoice_seq   INT DEFAULT 0,
     created_at    TIMESTAMPTZ DEFAULT now()
 );
 
@@ -33,13 +35,14 @@ CREATE INDEX idx_agencies_plan ON agencies(plan);
 
 CREATE TABLE clients (
     id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    agency_id     UUID NOT NULL,
-    user_id       UUID,
+    agency_id     UUID NOT NULL REFERENCES agencies(id) ON DELETE CASCADE,
+    user_id       UUID REFERENCES auth.users(id),
     name          TEXT NOT NULL,
     email         TEXT NOT NULL,
     invite_token  TEXT UNIQUE,
     invite_status TEXT DEFAULT 'pending' CHECK (invite_status IN ('pending','accepted')),
     created_at    TIMESTAMPTZ DEFAULT now(),
+    updated_at    TIMESTAMPTZ DEFAULT now(),
     UNIQUE(agency_id, email)
 );
 
@@ -55,8 +58,8 @@ CREATE INDEX idx_clients_invite_token ON clients(invite_token);
 
 CREATE TABLE projects (
     id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    agency_id     UUID NOT NULL,
-    client_id     UUID,
+    agency_id     UUID NOT NULL REFERENCES agencies(id) ON DELETE CASCADE,
+    client_id     UUID REFERENCES clients(id),
     name          TEXT NOT NULL,
     description   TEXT,
     status        TEXT DEFAULT 'active' CHECK (status IN ('active','review','completed','paused')),
@@ -77,11 +80,12 @@ CREATE INDEX idx_projects_due_date ON projects(due_date);
 
 CREATE TABLE tasks (
     id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    project_id    UUID NOT NULL,
+    project_id    UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     title         TEXT NOT NULL,
     completed     BOOLEAN DEFAULT false,
     position      INT DEFAULT 0,
-    created_at    TIMESTAMPTZ DEFAULT now()
+    created_at    TIMESTAMPTZ DEFAULT now(),
+    updated_at    TIMESTAMPTZ DEFAULT now()
 );
 
 -- Indexes for tasks
@@ -94,9 +98,9 @@ CREATE INDEX idx_tasks_position ON tasks(project_id, position);
 
 CREATE TABLE files (
     id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    project_id    UUID NOT NULL,
-    agency_id     UUID NOT NULL,
-    uploader_id   UUID NOT NULL,
+    project_id    UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    agency_id     UUID NOT NULL REFERENCES agencies(id),
+    uploader_id   UUID NOT NULL REFERENCES auth.users(id),
     name          TEXT NOT NULL,
     storage_path  TEXT NOT NULL,
     size_bytes    BIGINT NOT NULL,
@@ -117,8 +121,8 @@ CREATE INDEX idx_files_deleted_at ON files(deleted_at) WHERE deleted_at IS NULL;
 
 CREATE TABLE messages (
     id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    project_id    UUID NOT NULL,
-    sender_id     UUID NOT NULL,
+    project_id    UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    sender_id     UUID NOT NULL REFERENCES auth.users(id),
     content       TEXT NOT NULL,
     read_by       UUID[] DEFAULT '{}',
     created_at    TIMESTAMPTZ DEFAULT now()
@@ -135,11 +139,11 @@ CREATE INDEX idx_messages_created_at ON messages(project_id, created_at DESC);
 
 CREATE TABLE approvals (
     id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    project_id    UUID NOT NULL,
-    agency_id     UUID NOT NULL,
+    project_id    UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    agency_id     UUID NOT NULL REFERENCES agencies(id),
     title         TEXT NOT NULL,
     description   TEXT,
-    file_id       UUID,
+    file_id       UUID REFERENCES files(id),
     status        TEXT DEFAULT 'pending' CHECK (status IN ('pending','approved','changes_requested')),
     client_note   TEXT,
     created_at    TIMESTAMPTZ DEFAULT now(),
@@ -157,9 +161,9 @@ CREATE INDEX idx_approvals_status ON approvals(status);
 
 CREATE TABLE invoices (
     id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    agency_id     UUID NOT NULL,
-    client_id     UUID NOT NULL,
-    project_id    UUID,
+    agency_id     UUID NOT NULL REFERENCES agencies(id) ON DELETE CASCADE,
+    client_id     UUID NOT NULL REFERENCES clients(id),
+    project_id    UUID REFERENCES projects(id),
     invoice_number TEXT NOT NULL,
     amount        NUMERIC(10,2) NOT NULL,
     currency      TEXT DEFAULT 'INR' CHECK (currency IN ('INR','USD','GBP','EUR')),
@@ -170,7 +174,8 @@ CREATE TABLE invoices (
     payment_url   TEXT,
     notes         TEXT,
     created_at    TIMESTAMPTZ DEFAULT now(),
-    paid_at       TIMESTAMPTZ
+    paid_at       TIMESTAMPTZ,
+    CONSTRAINT invoices_number_agency_unique UNIQUE (agency_id, invoice_number)
 );
 
 -- Indexes for invoices
@@ -186,8 +191,8 @@ CREATE INDEX idx_invoices_invoice_number ON invoices(invoice_number);
 
 CREATE TABLE activity (
     id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    agency_id     UUID NOT NULL,
-    actor_id      UUID,
+    agency_id     UUID NOT NULL REFERENCES agencies(id) ON DELETE CASCADE,
+    actor_id      UUID REFERENCES auth.users(id),
     actor_name    TEXT,
     action        TEXT NOT NULL,
     entity_type   TEXT,
@@ -257,6 +262,14 @@ CREATE POLICY "Agency members can update their clients"
         )
     );
 
+CREATE POLICY "Agency members can delete their clients"
+    ON clients FOR DELETE
+    USING (
+        agency_id IN (
+            SELECT id FROM agencies WHERE owner_id = auth.uid()
+        )
+    );
+
 -- Projects: Agency members can see their projects
 CREATE POLICY "Agency members can view their projects"
     ON projects FOR SELECT
@@ -279,6 +292,23 @@ CREATE POLICY "Agency members can update their projects"
     USING (
         agency_id IN (
             SELECT id FROM agencies WHERE owner_id = auth.uid()
+        )
+    );
+
+CREATE POLICY "Agency members can delete their projects"
+    ON projects FOR DELETE
+    USING (
+        agency_id IN (
+            SELECT id FROM agencies WHERE owner_id = auth.uid()
+        )
+    );
+
+-- Projects: Clients can view their assigned projects
+CREATE POLICY "Clients can view their assigned projects"
+    ON projects FOR SELECT
+    USING (
+        client_id IN (
+            SELECT id FROM clients WHERE user_id = auth.uid()
         )
     );
 
@@ -310,6 +340,25 @@ CREATE POLICY "Agency members can update tasks for their projects"
         )
     );
 
+CREATE POLICY "Agency members can delete tasks for their projects"
+    ON tasks FOR DELETE
+    USING (
+        project_id IN (
+            SELECT id FROM projects WHERE 
+                agency_id IN (SELECT id FROM agencies WHERE owner_id = auth.uid())
+        )
+    );
+
+-- Tasks: Clients can view tasks for their assigned projects
+CREATE POLICY "Clients can view tasks for their assigned projects"
+    ON tasks FOR SELECT
+    USING (
+        project_id IN (
+            SELECT id FROM projects WHERE 
+                client_id IN (SELECT id FROM clients WHERE user_id = auth.uid())
+        )
+    );
+
 -- Files: Agency members can see files for their projects
 CREATE POLICY "Agency members can view files for their projects"
     ON files FOR SELECT
@@ -335,16 +384,41 @@ CREATE POLICY "Agency members can update files"
         )
     );
 
--- Messages: Agency members and clients can see messages for their projects
-CREATE POLICY "Users can view messages for their projects"
-    ON messages FOR SELECT
+CREATE POLICY "Agency members can delete files"
+    ON files FOR DELETE
+    USING (
+        agency_id IN (
+            SELECT id FROM agencies WHERE owner_id = auth.uid()
+        )
+    );
+
+-- Files: Clients can view files for their assigned projects
+CREATE POLICY "Clients can view files for their assigned projects"
+    ON files FOR SELECT
     USING (
         project_id IN (
             SELECT id FROM projects WHERE 
-                agency_id IN (SELECT id FROM agencies WHERE owner_id = auth.uid())
+                client_id IN (SELECT id FROM clients WHERE user_id = auth.uid())
+        )
+    );
+
+-- Messages: Agency owners and clients can see messages for their projects
+CREATE POLICY "Users can view messages for their projects"
+    ON messages FOR SELECT
+    USING (
+        -- Agency owner sees all messages in their projects
+        project_id IN (
+            SELECT p.id FROM projects p
+            JOIN agencies a ON a.id = p.agency_id
+            WHERE a.owner_id = auth.uid()
         )
         OR
-        sender_id = auth.uid()
+        -- Clients see messages in their assigned projects
+        project_id IN (
+            SELECT p.id FROM projects p
+            JOIN clients c ON c.id = p.client_id
+            WHERE c.user_id = auth.uid()
+        )
     );
 
 CREATE POLICY "Users can insert messages"
@@ -378,6 +452,24 @@ CREATE POLICY "Agency members can update approvals"
         )
     );
 
+CREATE POLICY "Agency members can delete approvals"
+    ON approvals FOR DELETE
+    USING (
+        agency_id IN (
+            SELECT id FROM agencies WHERE owner_id = auth.uid()
+        )
+    );
+
+-- Approvals: Clients can view approvals for their assigned projects
+CREATE POLICY "Clients can view approvals for their assigned projects"
+    ON approvals FOR SELECT
+    USING (
+        project_id IN (
+            SELECT id FROM projects WHERE 
+                client_id IN (SELECT id FROM clients WHERE user_id = auth.uid())
+        )
+    );
+
 -- Invoices: Agency members can see their invoices
 CREATE POLICY "Agency members can view their invoices"
     ON invoices FOR SELECT
@@ -403,6 +495,23 @@ CREATE POLICY "Agency members can update their invoices"
         )
     );
 
+CREATE POLICY "Agency members can delete their invoices"
+    ON invoices FOR DELETE
+    USING (
+        agency_id IN (
+            SELECT id FROM agencies WHERE owner_id = auth.uid()
+        )
+    );
+
+-- Invoices: Clients can view their invoices
+CREATE POLICY "Clients can view their invoices"
+    ON invoices FOR SELECT
+    USING (
+        client_id IN (
+            SELECT id FROM clients WHERE user_id = auth.uid()
+        )
+    );
+
 -- Activity: Agency members can see their activity feed
 CREATE POLICY "Agency members can view their activity"
     ON activity FOR SELECT
@@ -412,9 +521,13 @@ CREATE POLICY "Agency members can view their activity"
         )
     );
 
-CREATE POLICY "System can insert activity"
+CREATE POLICY "System can insert activity for own agency"
     ON activity FOR INSERT
-    WITH CHECK (true);
+    WITH CHECK (
+        agency_id IN (
+            SELECT id FROM agencies WHERE owner_id = auth.uid()
+        )
+    );
 
 -- ============================================================================
 -- FUNCTIONS
@@ -429,12 +542,49 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
--- Trigger to automatically update updated_at
+-- Function to generate next invoice number for an agency
+CREATE OR REPLACE FUNCTION next_invoice_number(p_agency_id UUID)
+RETURNS TEXT AS $$
+DECLARE
+    seq INT;
+    yr  TEXT;
+BEGIN
+    yr := to_char(now(), 'YYYY');
+    UPDATE agencies SET invoice_seq = invoice_seq + 1
+        WHERE id = p_agency_id
+        RETURNING invoice_seq INTO seq;
+    RETURN 'INV-' || yr || '-' || LPAD(seq::TEXT, 3, '0');
+END;
+$$ LANGUAGE plpgsql;
+
+-- Triggers to automatically update updated_at
 CREATE TRIGGER update_projects_updated_at BEFORE UPDATE ON projects
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_tasks_updated_at BEFORE UPDATE ON tasks
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_clients_updated_at BEFORE UPDATE ON clients
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================================================
+-- SUPABASE REALTIME
+-- ============================================================================
+
+-- Enable realtime for live feed tables
+ALTER PUBLICATION supabase_realtime ADD TABLE messages;
+ALTER PUBLICATION supabase_realtime ADD TABLE activity;
+ALTER PUBLICATION supabase_realtime ADD TABLE approvals;
 
 -- ============================================================================
 -- COMPLETION
 -- ============================================================================
 
 -- Migration completed successfully
+-- All foreign key constraints added
+-- All RLS policies for agency owners and clients added
+-- Invoice sequence function added
+-- Updated_at triggers on tasks and clients added
+-- Domain and color format validation added
+-- DELETE policies added
+-- Supabase Realtime publication added
