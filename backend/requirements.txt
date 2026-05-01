@@ -3,12 +3,12 @@
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
 python-dotenv==1.0.0
-pydantic[email]==2.5.0
+pydantic[email]==2.13.3
 pydantic-settings==2.1.0
 
 # Supabase
-supabase==2.3.4
-supabase-auth==0.1.0
+supabase==2.29.0
+supabase-auth==2.29.0
 
 # Rate limiting
 slowapi==0.1.9
@@ -33,7 +33,7 @@ psycopg2-binary==2.9.9
 asyncpg==0.29.0
 
 # Utilities
-httpx==0.25.2
+httpx==0.28.1
 aiofiles==23.2.1
 
 # Testing
