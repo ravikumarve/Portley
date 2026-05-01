@@ -603,3 +603,12 @@ ALTER PUBLICATION supabase_realtime ADD TABLE approvals;
 -- Domain and color format validation added
 -- DELETE policies added
 -- Supabase Realtime publication added
+
+-- ============================================================================
+-- GRANTS
+-- ============================================================================
+
+-- Grant schema access to authenticated users (RLS policies control row-level access)
+GRANT USAGE ON SCHEMA public TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO authenticated;
+GRANT EXECUTE ON FUNCTION next_invoice_number(UUID) TO authenticated;

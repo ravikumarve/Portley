@@ -9,7 +9,9 @@ from dotenv import load_dotenv
 from typing import Optional, Dict, Any, List
 from uuid import UUID
 
-load_dotenv()
+# Load environment variables from backend directory
+backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+load_dotenv(os.path.join(backend_dir, '.env'))
 
 # Supabase configuration
 SUPABASE_URL = os.getenv("SUPABASE_URL")
@@ -17,7 +19,12 @@ SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
 SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY")
 
 # Initialize Supabase client
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+try:
+    supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+except Exception as e:
+    print(f"Warning: Failed to initialize Supabase client: {e}")
+    print("This is expected in development without real credentials")
+    supabase = None
 
 
 class SupabaseService:
