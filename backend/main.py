@@ -94,7 +94,8 @@ from backend.routers import (
     invoices,
     ai,
     webhooks,
-    admin
+    admin,
+    whitelabel
 )
 
 app.include_router(projects.router, prefix="/api", tags=["Projects"])
@@ -106,6 +107,7 @@ app.include_router(invoices.router, prefix="/api", tags=["Invoices"])
 app.include_router(ai.router, prefix="/api", tags=["AI"])
 app.include_router(webhooks.router, prefix="/api", tags=["Webhooks"])
 app.include_router(admin.router, prefix="/api", tags=["Admin"])
+app.include_router(whitelabel.router, prefix="/api", tags=["Whitelabel"])
 
 if __name__ == "__main__":
     uvicorn.run(

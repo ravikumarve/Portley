@@ -11,7 +11,8 @@ from backend.routers import (
     invoices,
     ai,
     webhooks,
-    admin
+    admin,
+    whitelabel
 )
 
 __all__ = [
@@ -23,5 +24,6 @@ __all__ = [
     'invoices',
     'ai',
     'webhooks',
-    'admin'
+    'admin',
+    'whitelabel'
 ]
