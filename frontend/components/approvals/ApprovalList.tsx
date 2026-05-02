@@ -130,7 +130,7 @@ export function ApprovalList({ projectId }: ApprovalListProps) {
         .from('files')
         .select('id, name')
         .eq('project_id', projectId)
-        .is_('deleted_at', 'null')
+        .is('deleted_at', null)
 
       if (error) throw error
       setFiles(data || [])
@@ -204,7 +204,7 @@ export function ApprovalList({ projectId }: ApprovalListProps) {
       {/* Create Approval Button */}
       <div className="flex justify-end">
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
+          <DialogTrigger>
             <Button>
               <Plus className="mr-2 h-4 w-4" />
               Request Approval
@@ -245,7 +245,7 @@ export function ApprovalList({ projectId }: ApprovalListProps) {
                   <Label htmlFor="file">Attach File (Optional)</Label>
                   <Select
                     value={formData.file_id}
-                    onValueChange={(value) => setFormData({ ...formData, file_id: value })}
+                    onValueChange={(value) => setFormData({ ...formData, file_id: value as string })}
                   >
                     <SelectTrigger id="file">
                       <SelectValue placeholder="Select a file to attach" />

@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { 
   Table,
   TableBody,
@@ -281,7 +282,7 @@ export default function ClientInvoicesPage() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => window.open(invoice.payment_url, '_blank')}
+                                onClick={() => window.open(invoice.payment_url!, '_blank')}
                               >
                                 <ExternalLink className="h-4 w-4 mr-2" />
                                 Pay Now

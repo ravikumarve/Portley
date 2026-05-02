@@ -1,13 +1,12 @@
 import { createClient } from '@/lib/supabase/client'
-import { redirect } from 'next/navigation'
 import { notFound } from 'next/navigation'
 import { ReactNode } from 'react'
 
 interface PortalLayoutProps {
   children: ReactNode
-  params: {
+  params: Promise<{
     slug?: string
-  }
+  }>
 }
 
 interface Agency {
@@ -70,7 +69,8 @@ function lightenColor(hex: string, percent: number): string {
 }
 
 export default async function PortalLayout({ children, params }: PortalLayoutProps) {
-  const agency = await getAgencyBranding(params.slug)
+  const { slug } = await params
+  const agency = await getAgencyBranding(slug)
 
   if (!agency) {
     notFound()

@@ -249,7 +249,7 @@ export default function BrandingPage() {
                       type="button"
                       variant="outline"
                       disabled={uploadingLogo}
-                      asChild
+                      onClick={() => document.getElementById('logo')?.click()}
                     >
                       <span>
                         {uploadingLogo ? (

@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Progress } from '@/components/ui/progress'
+import { Button } from '@/components/ui/button'
 import { FolderKanban, FileText, MessageSquare, Receipt, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -49,7 +50,7 @@ export default function ClientPortalPage() {
       // Get client record
       const { data: client } = await supabase
         .from('clients')
-        .select('agency_id')
+        .select('id, agency_id')
         .eq('user_id', user.id)
         .single()
 

@@ -165,7 +165,7 @@ export default function InvoicesPage() {
           ))}
         </div>
         <div className="ml-auto">
-          <Select value={filter} onValueChange={(value) => setFilter(value)}>
+          <Select value={filter} onValueChange={(value) => setFilter(value as string)}>
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Filter by status" />
             </SelectTrigger>
@@ -244,7 +244,7 @@ export default function InvoicesPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
+                        <DropdownMenuTrigger>
                           <Button variant="ghost" size="icon" className="h-8 w-8">
                             <MoreVertical className="h-4 w-4" />
                           </Button>

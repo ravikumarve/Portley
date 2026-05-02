@@ -82,7 +82,7 @@ export default function ClientProjectPage() {
       // Get client record
       const { data: client } = await supabase
         .from('clients')
-        .select('agency_id')
+        .select('id, agency_id')
         .eq('user_id', user.id)
         .single()
 

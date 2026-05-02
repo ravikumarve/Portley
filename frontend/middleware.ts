@@ -53,7 +53,7 @@ export async function middleware(request: NextRequest) {
   // Handle custom domain resolution
   if (isCustomDomain) {
     try {
-      const supabase = createClient()
+      const supabase = await createClient()
 
       // Look up agency by custom domain
       const { data: agency, error } = await supabase
@@ -76,7 +76,7 @@ export async function middleware(request: NextRequest) {
 
   // Check authentication for protected routes
   if (PROTECTED_ROUTES.some(route => pathname.startsWith(route))) {
-    const supabase = createClient()
+    const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
@@ -101,7 +101,7 @@ export async function middleware(request: NextRequest) {
 
   // Redirect authenticated users away from auth pages
   if (pathname.startsWith('/auth/') && pathname !== '/auth/invite') {
-    const supabase = createClient()
+    const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
     if (user) {

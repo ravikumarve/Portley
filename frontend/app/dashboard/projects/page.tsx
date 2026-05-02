@@ -197,7 +197,7 @@ export default function ProjectsPage() {
           ))}
         </div>
         <div className="ml-auto">
-          <Select value={sortBy} onValueChange={(value) => setSortBy(value)}>
+          <Select value={sortBy} onValueChange={(value) => setSortBy(value as string)}>
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Sort by..." />
             </SelectTrigger>
@@ -255,8 +255,8 @@ export default function ProjectsPage() {
                     )}
                   </div>
                   <DropdownMenu>
-                    <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <DropdownMenuTrigger>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => e.stopPropagation()}>
                         <MoreVertical className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>

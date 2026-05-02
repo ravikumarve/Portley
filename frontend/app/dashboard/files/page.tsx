@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Progress } from '@/components/ui/progress'
+import { Button } from '@/components/ui/button'
 import { 
   Table,
   TableBody,
@@ -60,7 +61,7 @@ export default function FilesPage() {
           project:projects(name)
         `)
         .eq('agency_id', agency.id)
-        .is_('deleted_at', 'null')
+        .is('deleted_at', null)
         .order('created_at', { ascending: false })
 
       if (error) throw error

@@ -57,6 +57,7 @@ export default function MessagesPage() {
         .select(`
           id,
           name,
+          created_at,
           client:clients(name)
         `)
         .eq('agency_id', agency.id)
@@ -90,7 +91,7 @@ export default function MessagesPage() {
           return {
             project_id: project.id,
             project_name: project.name,
-            client_name: project.client?.name || 'Unknown',
+            client_name: project.client?.[0]?.name || 'Unknown',
             last_message: lastMessage?.content || 'No messages yet',
             last_message_time: lastMessage?.created_at || project.created_at,
             unread_count: unreadCount.count || 0,

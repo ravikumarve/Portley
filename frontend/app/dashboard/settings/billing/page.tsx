@@ -114,7 +114,7 @@ export default function BillingPage() {
             .from('files')
             .select('size_bytes')
             .eq('agency_id', agencyData.id)
-            .is_('deleted_at', 'null'),
+            .is('deleted_at', null),
         ])
 
         const storageUsed = filesData.data?.reduce((sum, file) => sum + (file.size_bytes || 0), 0) || 0

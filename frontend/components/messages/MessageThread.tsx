@@ -15,6 +15,7 @@ interface Message {
   sender_id: string
   sender_name: string
   is_mine: boolean
+  read_by: string[]
   created_at: string
 }
 

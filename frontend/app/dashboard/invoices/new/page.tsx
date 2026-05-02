@@ -241,8 +241,8 @@ export default function NewInvoicePage() {
               <div className="space-y-2">
                 <Label htmlFor="client">Client *</Label>
                 <Select
-                  value={formData.client_id}
-                  onValueChange={(value) => setFormData({ ...formData, client_id: value })}
+                  value={formData.client_id || ''}
+                  onValueChange={(value) => setFormData({ ...formData, client_id: value as string })}
                 >
                   <SelectTrigger id="client">
                     <SelectValue placeholder="Select a client" />
@@ -261,7 +261,7 @@ export default function NewInvoicePage() {
                 <Label htmlFor="project">Project (Optional)</Label>
                 <Select
                   value={formData.project_id}
-                  onValueChange={(value) => setFormData({ ...formData, project_id: value })}
+                  onValueChange={(value) => setFormData({ ...formData, project_id: value as string })}
                 >
                   <SelectTrigger id="project">
                     <SelectValue placeholder="Select a project" />
@@ -281,7 +281,7 @@ export default function NewInvoicePage() {
                 <Label htmlFor="currency">Currency</Label>
                 <Select
                   value={formData.currency}
-                  onValueChange={(value) => setFormData({ ...formData, currency: value })}
+                  onValueChange={(value) => setFormData({ ...formData, currency: value as string })}
                 >
                   <SelectTrigger id="currency">
                     <SelectValue />

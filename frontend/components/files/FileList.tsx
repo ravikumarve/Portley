@@ -18,7 +18,7 @@ import {
 import { Upload, Download, Trash2, FileIcon, Image as ImageIcon, FileText, Archive } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-interface File {
+interface FileRecord {
   id: string
   name: string
   size_bytes: number
@@ -33,11 +33,11 @@ interface FileListProps {
 }
 
 export function FileList({ projectId }: FileListProps) {
-  const [files, setFiles] = useState<File[]>([])
+  const [files, setFiles] = useState<FileRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [dragActive, setDragActive] = useState(false)
-  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; file: File | null }>({
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; file: FileRecord | null }>({
     open: false,
     file: null,
   })
@@ -53,7 +53,7 @@ export function FileList({ projectId }: FileListProps) {
         .from('files')
         .select('*')
         .eq('project_id', projectId)
-        .is_('deleted_at', 'null')
+        .is('deleted_at', null)
         .order('created_at', { ascending: false })
 
       if (error) throw error
@@ -139,7 +139,7 @@ export function FileList({ projectId }: FileListProps) {
     }
   }
 
-  const deleteFile = async (file: File) => {
+  const deleteFile = async (file: FileRecord) => {
     try {
       // Soft delete in database
       const { error } = await supabase

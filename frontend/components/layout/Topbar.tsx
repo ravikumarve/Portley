@@ -65,7 +65,7 @@ export function Topbar({ user, unreadCount = 0 }: TopbarProps) {
       <div className="flex items-center gap-4">
         {/* Quick Create */}
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
+          <DropdownMenuTrigger>
             <Button size="icon" variant="ghost">
               <Plus className="h-5 w-5" />
             </Button>
@@ -100,7 +100,7 @@ export function Topbar({ user, unreadCount = 0 }: TopbarProps) {
 
         {/* User Menu */}
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
+          <DropdownMenuTrigger>
             <Button variant="ghost" className="relative h-8 w-8 rounded-full">
               <Avatar className="h-8 w-8">
                 <AvatarImage src={user?.user_metadata?.avatar_url} alt={user?.user_metadata?.full_name} />

@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Progress } from '@/components/ui/progress'
 import { CheckCircle, ChevronRight, ChevronLeft, Upload, X } from 'lucide-react'
 import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
 
 const STEPS = [
   { id: 'agency', title: 'Tell us about your agency' },
@@ -373,7 +374,7 @@ export default function OnboardingPage() {
                   <Label htmlFor="service">What do you do? *</Label>
                   <Select
                     value={formData.service}
-                    onValueChange={(value) => setFormData({ ...formData, service: value })}
+                    onValueChange={(value) => setFormData({ ...formData, service: value as string })}
                   >
                     <SelectTrigger className={errors.service ? 'border-danger' : ''}>
                       <SelectValue placeholder="Select your primary service" />
